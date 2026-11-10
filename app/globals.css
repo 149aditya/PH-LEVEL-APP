@@ -1,0 +1,197 @@
+:root {
+  --paper: #eef3f0;
+  --surface: #ffffff;
+  --ink: #12241f;
+  --muted: #566a63;
+  --line: #d3ddd8;
+  --danger: #a3261f;
+  --ph: #5fb548;
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Familjen Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, p, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+img { display: block; max-width: 100%; }
+
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px 20px 48px;
+  min-height: 100dvh;
+}
+
+/* Brand */
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1rem; }
+.brand-mark { width: 12px; height: 30px; border-radius: 4px; }
+
+/* Home */
+.hero { padding-top: 44px; }
+.hero h1 {
+  font-size: clamp(2.2rem, 10vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+.lede { margin-top: 14px; color: var(--muted); max-width: 34ch; }
+.hero-strip { height: 14px; border-radius: 4px; margin: 30px 0 26px; }
+
+.primary, .secondary {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.primary { background: var(--ink); color: #fff; }
+.primary:active { transform: translateY(1px); }
+.secondary { margin-top: 10px; border: 1.5px solid var(--ink); }
+
+.error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--danger);
+  background: #fff;
+  color: var(--danger);
+  border-radius: 0 10px 10px 0;
+  font-weight: 500;
+}
+
+/* History */
+.history { margin-top: 48px; }
+.history-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.history h2, .parts h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
+.link { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; padding: 6px 0; }
+.empty { color: var(--muted); padding: 18px 0; border-top: 1px solid var(--line); }
+.history li { border-top: 1px solid var(--line); }
+.history li button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  text-align: left;
+}
+.history img { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; }
+.h-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h-ph { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.h-ph i, .ph-word i, .parts li i { width: 10px; height: 18px; border-radius: 3px; background: var(--ph); flex: none; }
+
+/* Scanning */
+.scanning { padding-top: 44px; text-align: center; }
+.scanning-photo {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--line);
+}
+.scanning-photo img { width: 100%; height: 100%; object-fit: cover; }
+.sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 10px;
+  animation: sweep 1.6s ease-in-out infinite alternate;
+}
+@keyframes sweep { to { top: calc(100% - 10px); } }
+.scanning p { margin-top: 18px; font-weight: 500; font-size: 1.1rem; }
+
+/* Gate */
+.gate { padding-top: 44px; }
+.gate h1 { font-size: 2rem; line-height: 1.05; letter-spacing: -0.02em; }
+.gate label { display: block; margin: 28px 0 8px; font-weight: 500; }
+.gate input {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  margin-bottom: 16px;
+}
+
+/* Result */
+.result { padding-top: 12px; }
+.back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 500; margin-left: -4px; }
+.photo { border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; background: var(--line); margin-top: 6px; }
+.photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+
+/* The reading sits on paper stained with the result's own indicator colour. */
+.reading {
+  background: color-mix(in srgb, var(--ph) 24%, #fff);
+  border-top: 10px solid var(--ph);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 22px 20px 24px;
+}
+.reading h1 { font-size: 1.7rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+.portion { margin-top: 6px; color: color-mix(in srgb, var(--ink) 75%, transparent); }
+
+.ph-line { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 26px; }
+.ph-number {
+  font-size: clamp(3.4rem, 19vw, 5rem);
+  line-height: 0.86;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+}
+.ph-word { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding-bottom: 4px; white-space: nowrap; }
+
+.scale { margin-top: 22px; }
+.scale-strip { position: relative; height: 22px; border-radius: 5px; }
+.scale-window {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px #fff;
+  min-width: 10px;
+}
+.scale-ticks, .scale-ends { display: flex; justify-content: space-between; font-size: 0.85rem; }
+.scale-ticks { margin-top: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.scale-ends { color: color-mix(in srgb, var(--ink) 72%, transparent); }
+.summary { margin-top: 20px; }
+
+.parts { margin-top: 28px; }
+.parts ul { margin-top: 8px; }
+.parts li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.parts b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.fineprint { margin: 24px 0 20px; color: var(--muted); font-size: 0.9rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep { animation: none; top: 50%; }
+  .primary:active { transform: none; }
+}
