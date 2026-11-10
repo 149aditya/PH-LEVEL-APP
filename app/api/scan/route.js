@@ -1,7 +1,8 @@
 import { phCategory } from '../../../lib/ph';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
+const PER_MODEL_MS = 18000; // give up on a slow model and try the next
 
 // Tried in order; a model that no longer exists is skipped.
 const MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-3.5-flash,gemini-2.5-flash')
@@ -80,6 +81,7 @@ export async function POST(req) {
   };
 
   let lastStatus = 0;
+  let lastDetail = '';
   for (const model of MODELS) {
     let res;
     try {
@@ -87,14 +89,23 @@ export async function POST(req) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(PER_MODEL_MS),
       });
-    } catch {
-      return json({ error: 'The scanner could not be reached. Check your connection and try again.' }, 502);
+    } catch (e) {
+      lastStatus = 0;
+      lastDetail = `${model}: ${e?.name === 'TimeoutError' ? 'timed out' : 'could not connect'}`;
+      continue;
     }
     lastStatus = res.status;
-    if (res.status === 404 || res.status === 400) continue; // model retired or unsupported: try the next
     if (res.status === 429) return json({ error: 'The free scan limit is used up for now. Try again in a minute.' }, 429);
-    if (!res.ok) continue;
+    if (!res.ok) {
+      // model retired, unsupported, overloaded or key problem: note why and try the next
+      const t = await res.text().catch(() => '');
+      let msg = t;
+      try { msg = JSON.parse(t).error?.message || t; } catch {}
+      lastDetail = `${model}: ${String(msg).slice(0, 180)}`;
+      continue;
+    }
 
     try {
       const data = await res.json();
@@ -127,9 +138,10 @@ export async function POST(req) {
         components: components.length > 1 ? components : [],
       });
     } catch {
+      lastDetail = `${model}: the reply could not be read`;
       continue;
     }
   }
 
-  return json({ error: `The scan did not finish (code ${lastStatus || 'unknown'}). Try again.` }, 502);
+  return json({ error: `The scan did not finish (code ${lastStatus || 'none'}). ${lastDetail}` }, 502);
 }
