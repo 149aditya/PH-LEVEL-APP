@@ -2,10 +2,12 @@ import { phCategory } from '../../../lib/ph';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-const PER_MODEL_MS = 25000; // give up on a slow model and try the next
+const PER_MODEL_MS = 20000;
+const noFastMode = new Set(); // models that rejected the light-reasoning setting // give up on a slow model and try the next
 
-// Tried in order; a model that no longer exists is skipped.
-const MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-3.5-flash')
+// Tried in order. Flash-Lite models come first because their free daily allowance is the largest.
+// A model that is out of quota, retired or slow is skipped and the next one is used.
+const MODELS = (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.8-flash,gemini-3.6-flash')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -87,9 +89,11 @@ export async function POST(req) {
   const notes = [];
   let lastStatus = 0;
   let skipModel = '';
+  let limited = 0;
 
   for (const { model, fast } of attempts) {
     if (model === skipModel) continue;
+    if (fast && noFastMode.has(model)) continue;
     const left = deadline - Date.now();
     if (left < 4000) break;
     const payload = {
@@ -111,12 +115,21 @@ export async function POST(req) {
       continue;
     }
     lastStatus = res.status;
-    if (res.status === 429) return json({ error: 'The free scan limit is used up for now. Try again in a minute.' }, 429);
+    if (res.status === 429) {
+      // this model's free quota is used up: move on to the next model
+      limited++;
+      notes.push(`${model}: free limit reached`);
+      skipModel = model;
+      continue;
+    }
     if (!res.ok) {
       const t = await res.text().catch(() => '');
       let msg = t;
       try { msg = JSON.parse(t).error?.message || t; } catch {}
-      if (fast && res.status === 400) continue; // retry this model without the reasoning setting
+      if (fast && res.status === 400) {
+        noFastMode.add(model); // retry this model without the reasoning setting, and remember
+        continue;
+      }
       notes.push(`${model} (${res.status}): ${String(msg).slice(0, 90)}`);
       skipModel = model;
       continue;
@@ -159,5 +172,8 @@ export async function POST(req) {
     }
   }
 
+  if (limited >= MODELS.length) {
+    return json({ error: 'The free scan limit is used up for now. Try again in a minute, or tomorrow if it keeps happening.' }, 429);
+  }
   return json({ error: `The scan did not finish (code ${lastStatus || 'none'}). ${notes.join(' | ')}` }, 502);
 }
