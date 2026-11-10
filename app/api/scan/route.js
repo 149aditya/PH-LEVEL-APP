@@ -2,10 +2,10 @@ import { phCategory } from '../../../lib/ph';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-const PER_MODEL_MS = 18000; // give up on a slow model and try the next
+const PER_MODEL_MS = 25000; // give up on a slow model and try the next
 
 // Tried in order; a model that no longer exists is skipped.
-const MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-3.5-flash,gemini-2.5-flash')
+const MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-3.5-flash')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -75,35 +75,50 @@ export async function POST(req) {
   if (!m) return json({ error: 'Send a JPEG, PNG or WebP photo.' }, 400);
   if (m[2].length > 4_000_000) return json({ error: 'That photo is too large.' }, 413);
 
-  const payload = {
-    contents: [{ parts: [{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }] }],
-    generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: SCHEMA },
-  };
+  const base = [{ parts: [{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }] }];
+  const config = { temperature: 0.2, responseMimeType: 'application/json', responseSchema: SCHEMA };
 
+  // Each model is tried first with light reasoning (faster), then plain if it rejects that setting.
+  const attempts = MODELS.flatMap((model) => [
+    { model, fast: true },
+    { model, fast: false },
+  ]);
+  const deadline = Date.now() + 54000;
+  const notes = [];
   let lastStatus = 0;
-  let lastDetail = '';
-  for (const model of MODELS) {
+  let skipModel = '';
+
+  for (const { model, fast } of attempts) {
+    if (model === skipModel) continue;
+    const left = deadline - Date.now();
+    if (left < 4000) break;
+    const payload = {
+      contents: base,
+      generationConfig: fast ? { ...config, thinkingConfig: { thinkingLevel: 'low' } } : config,
+    };
     let res;
     try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(PER_MODEL_MS),
+        signal: AbortSignal.timeout(Math.min(PER_MODEL_MS, left)),
       });
     } catch (e) {
       lastStatus = 0;
-      lastDetail = `${model}: ${e?.name === 'TimeoutError' ? 'timed out' : 'could not connect'}`;
+      notes.push(`${model}: ${e?.name === 'TimeoutError' ? 'timed out' : 'could not connect'}`);
+      skipModel = model;
       continue;
     }
     lastStatus = res.status;
     if (res.status === 429) return json({ error: 'The free scan limit is used up for now. Try again in a minute.' }, 429);
     if (!res.ok) {
-      // model retired, unsupported, overloaded or key problem: note why and try the next
       const t = await res.text().catch(() => '');
       let msg = t;
       try { msg = JSON.parse(t).error?.message || t; } catch {}
-      lastDetail = `${model}: ${String(msg).slice(0, 180)}`;
+      if (fast && res.status === 400) continue; // retry this model without the reasoning setting
+      notes.push(`${model} (${res.status}): ${String(msg).slice(0, 90)}`);
+      skipModel = model;
       continue;
     }
 
@@ -138,10 +153,11 @@ export async function POST(req) {
         components: components.length > 1 ? components : [],
       });
     } catch {
-      lastDetail = `${model}: the reply could not be read`;
+      notes.push(`${model}: the reply could not be read`);
+      skipModel = model;
       continue;
     }
   }
 
-  return json({ error: `The scan did not finish (code ${lastStatus || 'none'}). ${lastDetail}` }, 502);
+  return json({ error: `The scan did not finish (code ${lastStatus || 'none'}). ${notes.join(' | ')}` }, 502);
 }
